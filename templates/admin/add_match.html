@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Add Match{% endblock %}
+{% block content %}
+<div class="card" style="max-width:540px;margin:0 auto">
+  <h2>Add Match</h2>
+  <form method="POST">
+    <div class="form-group">
+      <label>Home Team</label>
+      <select name="home_team_id" required>
+        {% for team in teams %}
+        <option value="{{ team.id }}">{{ team.name }} {{ team.flag_emoji | flag_html | safe }} (Group {{ team.group }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Away Team</label>
+      <select name="away_team_id" required>
+        {% for team in teams %}
+        <option value="{{ team.id }}">{{ team.name }} {{ team.flag_emoji | flag_html | safe }} (Group {{ team.group }})</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Match Date &amp; Time</label>
+      <input type="datetime-local" name="match_date" required />
+    </div>
+    <div class="form-group">
+      <label>Stage</label>
+      <select name="stage">
+        <option>Group Stage</option>
+        <option>Round of 32</option>
+        <option>Round of 16</option>
+        <option>Quarter-final</option>
+        <option>Semi-final</option>
+        <option>Third Place</option>
+        <option>Final</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Venue (optional)</label>
+      <input type="text" name="venue" placeholder="e.g. MetLife Stadium" />
+    </div>
+    <button type="submit" class="btn btn-primary">Add Match</button>
+    <a href="{{ url_for('admin_matches') }}" class="btn">Cancel</a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Betting Pool{% endblock %}
+{% block content %}
+<h1>Betting Pool</h1>
+
+{% for match in matches %}
+<div class="card pool-card">
+  <div class="pool-header">
+    <span>
+      {{ match.home_team.flag_emoji ~ ' ' if match.home_team else '' }}
+      {{ match.home_team.name if match.home_team else (match.home_source or 'TBD') }}
+      vs
+      {{ match.away_team.name if match.away_team else (match.away_source or 'TBD') }}
+      {{ ' ' ~ match.away_team.flag_emoji if match.away_team else '' }}
+    </span>
+    <span class="muted">{{ match.match_date.strftime('%b %d') }} — {{ match.stage }}</span>
+    {% if match.result %}
+      <span class="badge badge-success">
+        {{ match.home_score }}-{{ match.away_score }}
+        ({% if match.result == 'home' %}{{ match.home_team.name }}
+         {% elif match.result == 'away' %}{{ match.away_team.name }}
+         {% else %}Draw{% endif %})
+      </span>
+    {% endif %}
+  </div>
+
+  {% if match.bets %}
+  <div class="pool-breakdown">
+    {% set home_bets = match.bets | selectattr('prediction', 'equalto', 'home') | list %}
+    {% set draw_bets = match.bets | selectattr('prediction', 'equalto', 'draw') | list %}
+    {% set away_bets = match.bets | selectattr('prediction', 'equalto', 'away') | list %}
+    <div class="pool-col">
+      <div class="pool-label">{{ match.home_team.name if match.home_team else (match.home_source or 'Home') }}</div>
+      <div class="pool-count">{{ home_bets | length }}</div>
+      <ul class="pool-names">{% for b in home_bets %}<li>{{ b.user.username }}</li>{% endfor %}</ul>
+    </div>
+    <div class="pool-col">
+      <div class="pool-label">Draw</div>
+      <div class="pool-count">{{ draw_bets | length }}</div>
+      <ul class="pool-names">{% for b in draw_bets %}<li>{{ b.user.username }}</li>{% endfor %}</ul>
+    </div>
+    <div class="pool-col">
+      <div class="pool-label">{{ match.away_team.name if match.away_team else (match.away_source or 'Away') }}</div>
+      <div class="pool-count">{{ away_bets | length }}</div>
+      <ul class="pool-names">{% for b in away_bets %}<li>{{ b.user.username }}</li>{% endfor %}</ul>
+    </div>
+  </div>
+  {% else %}
+  <p class="muted" style="padding:.5rem">No bets yet.</p>
+  {% endif %}
+</div>
+{% else %}
+<p class="muted">No matches scheduled.</p>
+{% endfor %}
+{% endblock %}

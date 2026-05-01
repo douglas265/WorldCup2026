@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1>Welcome, {{ current_user.username }}! ⚽</h1>
+
+<div class="dashboard-grid">
+  <!-- Upcoming matches -->
+  <section class="card">
+    <h2>Upcoming Matches</h2>
+    {% if upcoming %}
+    <table class="table">
+      <thead><tr><th>Date</th><th>Match</th><th>Stage</th><th>Your Pick</th><th></th></tr></thead>
+      <tbody>
+      {% for match in upcoming %}
+      <tr>
+        <td>{{ match.match_date.strftime('%b %d, %H:%M') }}</td>
+        <td>
+          {% if match.home_team %}{{ match.home_team.name }} {{ match.home_team.flag_emoji | flag_html | safe }}
+          {% else %}<span class="muted">{{ match.home_source or 'TBD' }}</span>{% endif %}
+          vs
+          {% if match.away_team %}{{ match.away_team.name }} {{ match.away_team.flag_emoji | flag_html | safe }}
+          {% else %}<span class="muted">{{ match.away_source or 'TBD' }}</span>{% endif %}
+        </td>
+        <td><span class="badge">{{ match.stage }}</span></td>
+        <td>
+          {% if my_bets.get(match.id) %}
+            {% set bet = my_bets[match.id] %}
+            {% if bet.prediction == 'home' %}
+              <span class="pick pick-home">{{ match.home_team.name if match.home_team else 'Home' }}</span>
+            {% elif bet.prediction == 'away' %}
+              <span class="pick pick-away">{{ match.away_team.name if match.away_team else 'Away' }}</span>
+            {% else %}
+              <span class="pick pick-draw">Draw</span>
+            {% endif %}
+          {% else %}
+            <span class="muted">No pick yet</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if match.betting_open() %}
+          <a href="{{ url_for('matches') }}#match-{{ match.id }}" class="btn btn-sm btn-primary">Bet</a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <a href="{{ url_for('matches') }}" class="btn btn-sm">View all matches →</a>
+    {% else %}
+    <p class="muted">No upcoming matches scheduled yet.</p>
+    {% endif %}
+  </section>
+
+  <!-- My stats -->
+  <section class="card">
+    <h2>My Stats</h2>
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-value">{{ current_user.total_points() }}</div>
+        <div class="stat-label">Total Points</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">{{ current_user.bets | length }}</div>
+        <div class="stat-label">Bets Placed</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value">
+          {% if current_user.tournament_bet %}
+            {{ current_user.tournament_bet.team.name }} {{ current_user.tournament_bet.team.flag_emoji | flag_html | safe }}
+          {% else %}
+            —
+          {% endif %}
+        </div>
+        <div class="stat-label">Champion Pick</div>
+      </div>
+    </div>
+    <a href="{{ url_for('tournament_bet') }}" class="btn btn-sm btn-primary">
+      {% if current_user.tournament_bet %}Update{% else %}Pick{% endif %} Champion
+    </a>
+  </section>
+
+  <!-- Mini leaderboard -->
+  <section class="card">
+    <h2>Top 10 Leaderboard</h2>
+    <ol class="leaderboard-mini">
+      {% for user in leaderboard %}
+      <li class="{{ 'highlight' if user.id == current_user.id }}">
+        <span class="lb-name">{{ user.username }}</span>
+        <span class="lb-pts">{{ user.total_points() }} pts</span>
+      </li>
+      {% endfor %}
+    </ol>
+    <a href="{{ url_for('leaderboard') }}" class="btn btn-sm">Full leaderboard →</a>
+  </section>
+</div>
+{% endblock %}

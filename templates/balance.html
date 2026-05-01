@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% block title %}My Balance{% endblock %}
+{% block content %}
+<h1>My Balance</h1>
+
+<!-- Balance hero -->
+<div class="balance-hero card">
+  <div class="balance-amount">${{ "%.2f"|format(current_user.balance) }}</div>
+  <div class="balance-label">Available Balance</div>
+  {% if pending_payout %}
+  <div style="margin-top:.85rem;background:rgba(255,255,255,.15);border-radius:8px;padding:.5rem 1rem;font-size:.9rem">
+    ⏳ Payout of <strong>${{ "%.2f"|format(pending_payout.amount) }}</strong> pending —
+    requested {{ pending_payout.requested_at.strftime('%b %d, %H:%M') }} UTC
+  </div>
+  {% elif current_user.balance >= 0.01 %}
+  <form method="POST" action="{{ url_for('payout_request') }}" style="margin-top:1rem"
+        onsubmit="return confirm('Request payout of ${{ '%.2f'|format(current_user.balance) }}? Your balance will be deducted and admin will send payment externally.')">
+    <button type="submit" class="btn btn-primary" style="background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.5);color:#fff">
+      Request Payout (${{ "%.2f"|format(current_user.balance) }})
+    </button>
+  </form>
+  {% endif %}
+</div>
+
+<!-- Payout history -->
+{% if payout_history %}
+<div class="card">
+  <h2>Payout Requests</h2>
+  <table class="table">
+    <thead>
+      <tr><th>Requested</th><th>Amount</th><th>Status</th><th>Paid At</th></tr>
+    </thead>
+    <tbody>
+    {% for pr in payout_history %}
+    <tr>
+      <td>{{ pr.requested_at.strftime('%b %d, %Y %H:%M') }} UTC</td>
+      <td><strong>${{ "%.2f"|format(pr.amount) }}</strong></td>
+      <td>
+        {% if pr.status == 'paid' %}
+          <span class="status-badge status-won">Paid ✓</span>
+        {% else %}
+          <span class="status-badge status-pending">Pending</span>
+        {% endif %}
+      </td>
+      <td>{{ pr.paid_at.strftime('%b %d, %Y %H:%M') ~ ' UTC' if pr.paid_at else '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Summary stats -->
+<div class="stat-row">
+  <div class="stat card">
+    <div class="stat-value">{{ bets | length }}</div>
+    <div class="stat-label">Bets Placed</div>
+  </div>
+  <div class="stat card">
+    <div class="stat-value">${{ "%.2f"|format(total_wagered) }}</div>
+    <div class="stat-label">Total Wagered</div>
+  </div>
+  <div class="stat card">
+    <div class="stat-value">${{ "%.2f"|format(total_won) }}</div>
+    <div class="stat-label">Total Returned</div>
+  </div>
+  <div class="stat card">
+    <div class="stat-value {{ 'profit' if net > 0 else ('loss' if net < 0 else '') }}">
+      {{ '+' if net > 0 else '' }}${{ "%.2f"|format(net) }}
+    </div>
+    <div class="stat-label">Net Profit / Loss</div>
+  </div>
+</div>
+
+<!-- ===== Transaction Ledger ===== -->
+<div class="card">
+  <h2>Money Flow</h2>
+  {% if transactions %}
+  <div style="overflow-x:auto">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Type</th>
+        <th>Description</th>
+        <th>Amount</th>
+        <th>Balance After</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for tx in transactions %}
+    <tr>
+      <td style="white-space:nowrap">{{ tx.created_at.strftime('%b %d, %H:%M') }}</td>
+      <td>
+        {% if tx.tx_type == 'admin_credit' %}
+          <span class="tx-badge tx-admin-credit">Admin Deposit</span>
+        {% elif tx.tx_type == 'admin_debit' %}
+          <span class="tx-badge tx-admin-debit">Admin Deduction</span>
+        {% elif tx.tx_type == 'bet_placed' %}
+          <span class="tx-badge tx-bet-placed">Bet Placed</span>
+        {% elif tx.tx_type == 'bet_removed' %}
+          <span class="tx-badge tx-bet-removed">Bet Removed</span>
+        {% elif tx.tx_type == 'match_won' %}
+          <span class="tx-badge tx-match-won">Won</span>
+        {% elif tx.tx_type == 'match_lost' %}
+          <span class="tx-badge tx-match-lost">Lost</span>
+        {% elif tx.tx_type == 'match_refunded' %}
+          <span class="tx-badge tx-match-refunded">Refunded</span>
+        {% elif tx.tx_type == 'payout_requested' %}
+          <span class="tx-badge tx-payout">Payout Requested</span>
+        {% else %}
+          <span class="tx-badge">{{ tx.tx_type }}</span>
+        {% endif %}
+      </td>
+      <td>{{ tx.description }}</td>
+      <td class="{{ 'text-profit' if tx.amount > 0 else ('text-loss' if tx.amount < 0 else 'muted') }}"
+          style="white-space:nowrap;font-weight:600">
+        {% if tx.amount > 0 %}+${{ "%.2f"|format(tx.amount) }}
+        {% elif tx.amount < 0 %}-${{ "%.2f"|format(tx.amount | abs) }}
+        {% else %}<span class="muted">$0.00</span>{% endif %}
+      </td>
+      <td style="white-space:nowrap">${{ "%.2f"|format(tx.balance_after) }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">No transactions yet.</p>
+  {% endif %}
+</div>
+
+<!-- ===== Betting History ===== -->
+<div class="card">
+  <h2>Betting History</h2>
+  {% if bets %}
+  <div style="overflow-x:auto">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Match</th>
+        <th>Stage</th>
+        <th>Your Pick</th>
+        <th>Result</th>
+        <th>Wagered</th>
+        <th>Payout</th>
+        <th>Net</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for bet in bets %}
+    {% set m = bet.match %}
+    <tr>
+      <td style="white-space:nowrap">{{ bet.placed_at.strftime('%b %d, %H:%M') }}</td>
+      <td>
+        {% if m.home_team %}{{ m.home_team.name }} {{ m.home_team.flag_emoji | flag_html | safe }}
+        {% else %}<span class="muted">{{ m.home_source or 'TBD' }}</span>{% endif %}
+        vs
+        {% if m.away_team %}{{ m.away_team.name }} {{ m.away_team.flag_emoji | flag_html | safe }}
+        {% else %}<span class="muted">{{ m.away_source or 'TBD' }}</span>{% endif %}
+      </td>
+      <td><span class="badge">{{ m.stage }}</span></td>
+      <td>
+        {% if bet.prediction == 'home' %}
+          <span class="pick pick-home">{{ m.home_team.name if m.home_team else 'Home' }}</span>
+        {% elif bet.prediction == 'away' %}
+          <span class="pick pick-away">{{ m.away_team.name if m.away_team else 'Away' }}</span>
+        {% else %}
+          <span class="pick pick-draw">Draw</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if m.result %}
+          {% if m.result == 'home' %}{{ m.home_team.name if m.home_team else 'Home' }} {{ m.home_score }}–{{ m.away_score }}
+          {% elif m.result == 'away' %}{{ m.away_team.name if m.away_team else 'Away' }} {{ m.home_score }}–{{ m.away_score }}
+          {% else %}Draw {{ m.home_score }}–{{ m.away_score }}{% endif %}
+        {% else %}<span class="muted">Pending</span>{% endif %}
+      </td>
+      <td>${{ "%.2f"|format(bet.amount or 5.0) }}</td>
+      <td>
+        {% if bet.payout is not none %}${{ "%.2f"|format(bet.payout) }}
+        {% else %}<span class="muted">—</span>{% endif %}
+      </td>
+      <td>
+        {% set n = bet.net() %}
+        {% if n is none %}<span class="muted">—</span>
+        {% elif n > 0 %}<span class="text-profit">+${{ "%.2f"|format(n) }}</span>
+        {% elif n < 0 %}<span class="text-loss">-${{ "%.2f"|format(n | abs) }}</span>
+        {% else %}<span class="muted">$0.00</span>{% endif %}
+      </td>
+      <td>
+        {% set s = bet.status() %}
+        {% if s == 'won' %}<span class="status-badge status-won">Won</span>
+        {% elif s == 'lost' %}<span class="status-badge status-lost">Lost</span>
+        {% elif s == 'refunded' %}<span class="status-badge status-refunded">Refunded</span>
+        {% else %}<span class="status-badge status-pending">Pending</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">No bets placed yet. Head to <a href="{{ url_for('matches') }}">Matches</a> to start!</p>
+  {% endif %}
+</div>
+{% endblock %}

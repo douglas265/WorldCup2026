@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}WorldCup 2026{% endblock %} — WC2026 Picks</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <nav class="navbar">
+    <a class="brand" href="{{ url_for('dashboard') }}">⚽ WC2026 Picks</a>
+    {% if current_user.is_authenticated %}
+    <div class="nav-links">
+      <a href="{{ url_for('matches') }}">Matches</a>
+      <a href="{{ url_for('bracket_view') }}">Bracket</a>
+      <a href="{{ url_for('tournament_bet') }}">Champion Pick</a>
+      <a href="{{ url_for('leaderboard') }}">Leaderboard</a>
+      <a href="{{ url_for('balance') }}">My Balance</a>
+      {% if current_user.is_admin %}
+      <a href="{{ url_for('admin_dashboard') }}" class="admin-link">Admin</a>
+      {% endif %}
+      <span class="nav-user">{{ current_user.username }}</span>
+      <span class="nav-balance">${{ "%.2f"|format(current_user.balance) }}</span>
+      <a href="{{ url_for('logout') }}" class="btn btn-sm btn-logout">Logout</a>
+    </div>
+    {% endif %}
+  </nav>
+
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+      <div class="toast-container" id="toast-container">
+        {% for category, message in messages %}
+        <div class="toast toast-{{ category }}">
+          <span class="toast-msg">{{ message }}</span>
+          <button class="toast-close" onclick="this.parentElement.remove()">&times;</button>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <script>
+  // Auto-dismiss toasts after 4 seconds
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.toast').forEach(function(toast) {
+      setTimeout(function() {
+        toast.classList.add('toast-hide');
+        setTimeout(function() { toast.remove(); }, 400);
+      }, 4000);
+    });
+  });
+  </script>
+
+  <footer>
+    <p>WorldCup 2026 Picks &mdash; For friends &amp; family only.</p>
+  </footer>
+</body>
+</html>

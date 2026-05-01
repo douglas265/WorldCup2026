@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Leaderboard{% endblock %}
+{% block content %}
+<h1>🏆 Leaderboard</h1>
+<div class="card">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Player</th>
+        <th>Match Points</th>
+        <th>Champion Points</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for user in users %}
+    <tr class="{{ 'highlight' if user.id == current_user.id }}">
+      <td>
+        {% if loop.index == 1 %}🥇
+        {% elif loop.index == 2 %}🥈
+        {% elif loop.index == 3 %}🥉
+        {% else %}{{ loop.index }}{% endif %}
+      </td>
+      <td>{{ user.username }}</td>
+      <td>{{ user.bets | selectattr('points') | map(attribute='points') | sum }}</td>
+      <td>{{ user.tournament_bet.points if user.tournament_bet and user.tournament_bet.points else 0 }}</td>
+      <td><strong>{{ user.total_points() }}</strong></td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">No players yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Bracket{% endblock %}
+{% block content %}
+
+<h1>Tournament Bracket</h1>
+
+{# ── Group Stage ── #}
+<h2 style="margin-bottom:1rem">Group Stage</h2>
+<div class="gs-grid">
+  {% for group_letter, standing in groups.items() %}
+  <div class="gs-group">
+    <div class="gs-header">Group {{ group_letter }}</div>
+    <table class="gs-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>P</th><th>W</th><th>D</th><th>L</th><th>GD</th><th>Pts</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in standing %}
+        {% set w = ((s.pts - (s.played - s.pts // 3 * 3 - (1 if s.pts % 3 == 0 and s.played > 0 else 0))) // 3) if false else 0 %}
+        {% set draws = s.pts % 3 %}
+        {% set wins = (s.pts - draws) // 3 %}
+        {% set losses = s.played - wins - draws %}
+        <tr class="{{ 'gs-qualify' if loop.index <= 2 }} {{ 'gs-third' if loop.index == 3 }}">
+          <td class="gs-team">
+            {{ s.team.flag_emoji | flag_html | safe }}
+            <span>{{ s.team.name }}</span>
+          </td>
+          <td>{{ s.played }}</td>
+          <td>{{ wins }}</td>
+          <td>{{ draws }}</td>
+          <td>{{ losses }}</td>
+          <td>{{ '%+d' % s.gd if s.played > 0 else '—' }}</td>
+          <td><strong>{{ s.pts }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+</div>
+
+<hr style="margin:2rem 0;border:none;border-top:2px solid var(--border)">
+<h2 style="margin-bottom:1rem">Knockout Stage</h2>
+{# ── Macro: compact match card ── #}
+{% macro mcard(m, side='left') %}
+{% if m %}
+<div class="bk-card {{ 'bk-done' if m.result }} {{ 'bk-card-right' if side == 'right' }}">
+  {# Home row #}
+  <div class="bk-row {{ 'bk-win' if m.result == 'home' }} {{ 'bk-lose' if m.result and m.result != 'home' }}">
+    <span class="bk-name">
+      {% if m.home_team %}{{ m.home_team.flag_emoji | flag_html | safe }} {{ m.home_team.name }}
+      {% else %}<span class="muted">{{ m.home_source or 'TBD' }}</span>{% endif %}
+    </span>
+    {% if m.result %}<span class="bk-score">{{ m.home_score }}</span>{% endif %}
+  </div>
+  {# Away row #}
+  <div class="bk-row {{ 'bk-win' if m.result == 'away' }} {{ 'bk-lose' if m.result and m.result != 'away' }}">
+    <span class="bk-name">
+      {% if m.away_team %}{{ m.away_team.flag_emoji | flag_html | safe }} {{ m.away_team.name }}
+      {% else %}<span class="muted">{{ m.away_source or 'TBD' }}</span>{% endif %}
+    </span>
+    {% if m.result %}<span class="bk-score">{{ m.away_score }}</span>{% endif %}
+  </div>
+  <div class="bk-meta">
+    {% if m.match_date %}{{ m.match_date.strftime('%b %d') }}{% endif %}
+    <span style="margin-left:auto;opacity:.5;font-size:.68rem">{{ m.bracket_slot }}</span>
+  </div>
+</div>
+{% else %}
+<div class="bk-card bk-empty"></div>
+{% endif %}
+{% endmacro %}
+
+{# ── Bracket canvas ── #}
+<div style="overflow-x:auto;padding-bottom:1.5rem">
+<div class="bk-canvas">
+
+  {# Left: R32 #}
+  <div class="bk-col">
+    <div class="bk-col-label">Round of 32</div>
+    <div class="bk-col-body">
+      {% for m in b.r32_l %}{{ mcard(m) }}{% endfor %}
+    </div>
+  </div>
+
+  {# Left: R16 #}
+  <div class="bk-col">
+    <div class="bk-col-label">Round of 16</div>
+    <div class="bk-col-body">
+      {% for m in b.r16_l %}{{ mcard(m) }}{% endfor %}
+    </div>
+  </div>
+
+  {# Left: QF #}
+  <div class="bk-col">
+    <div class="bk-col-label">Quarter-Final</div>
+    <div class="bk-col-body">
+      {% for m in b.qf_l %}{{ mcard(m) }}{% endfor %}
+    </div>
+  </div>
+
+  {# Left: SF #}
+  <div class="bk-col">
+    <div class="bk-col-label">Semi-Final</div>
+    <div class="bk-col-body">
+      {% for m in b.sf_l %}{{ mcard(m) }}{% endfor %}
+    </div>
+  </div>
+
+  {# FINAL — center #}
+  <div class="bk-col bk-col-final">
+    <div class="bk-col-label" style="color:var(--gold);font-size:.85rem">🏆 Final</div>
+    <div class="bk-col-body" style="justify-content:center;gap:.75rem">
+      <div style="text-align:center;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gold);margin-bottom:.25rem">🏆 Final</div>
+      {{ mcard(b.final) }}
+      {% if b.third %}
+      <div style="text-align:center;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:.25rem">3rd Place</div>
+      {{ mcard(b.third) }}
+      {% endif %}
+    </div>
+  </div>
+
+  {# Right: SF #}
+  <div class="bk-col">
+    <div class="bk-col-label">Semi-Final</div>
+    <div class="bk-col-body">
+      {% for m in b.sf_r %}{{ mcard(m, 'right') }}{% endfor %}
+    </div>
+  </div>
+
+  {# Right: QF #}
+  <div class="bk-col">
+    <div class="bk-col-label">Quarter-Final</div>
+    <div class="bk-col-body">
+      {% for m in b.qf_r %}{{ mcard(m, 'right') }}{% endfor %}
+    </div>
+  </div>
+
+  {# Right: R16 #}
+  <div class="bk-col">
+    <div class="bk-col-label">Round of 16</div>
+    <div class="bk-col-body">
+      {% for m in b.r16_r %}{{ mcard(m, 'right') }}{% endfor %}
+    </div>
+  </div>
+
+  {# Right: R32 #}
+  <div class="bk-col">
+    <div class="bk-col-label">Round of 32</div>
+    <div class="bk-col-body">
+      {% for m in b.r32_r %}{{ mcard(m, 'right') }}{% endfor %}
+    </div>
+  </div>
+
+</div>
+</div>
+
+{% endblock %}

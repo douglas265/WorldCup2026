@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Payout Requests{% endblock %}
+{% block content %}
+<h1>Payout Requests</h1>
+
+<div class="admin-nav">
+  <a href="{{ url_for('admin_dashboard') }}" class="btn">← Dashboard</a>
+  <a href="{{ url_for('admin_users') }}" class="btn">Manage Users</a>
+</div>
+
+<!-- Pending -->
+<div class="card">
+  <h2>Pending <span class="badge badge-warning" style="font-size:.85rem;vertical-align:middle">{{ pending | length }}</span></h2>
+  {% if pending %}
+  <div style="overflow-x:auto">
+  <table class="table">
+    <thead>
+      <tr><th>User</th><th>Amount</th><th>Requested</th><th>Mark Paid</th></tr>
+    </thead>
+    <tbody>
+    {% for pr in pending %}
+    <tr>
+      <td><strong>{{ pr.user.username }}</strong><br>
+        <span class="muted" style="font-size:.8rem">{{ pr.user.first_name or '' }} {{ pr.user.last_name or '' }}</span><br>
+        {% if pr.user.payment_method %}
+          <span class="badge">{{ pr.user.payment_method | capitalize }}</span>
+          <span class="muted" style="font-size:.8rem">{{ pr.user.payment_handle or '' }}</span>
+        {% else %}<span class="muted" style="font-size:.8rem">No payment method set</span>{% endif %}
+      </td>
+      <td><strong style="font-size:1.1rem;color:var(--green)">${{ "%.2f"|format(pr.amount) }}</strong></td>
+      <td>{{ pr.requested_at.strftime('%b %d, %Y %H:%M') }} UTC</td>
+      <td>
+        <form method="POST" action="{{ url_for('admin_mark_payout_paid', pr_id=pr.id) }}"
+              onsubmit="return confirm('Mark ${{ '%.2f'|format(pr.amount) }} payout as paid for {{ pr.user.username }}?')">
+          <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;font-weight:600;color:var(--green)">
+            <input type="checkbox" onchange="if(this.checked) this.form.submit()"
+                   style="width:18px;height:18px;cursor:pointer;accent-color:var(--green)">
+            Confirm Sent
+          </label>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">No pending payout requests.</p>
+  {% endif %}
+</div>
+
+<!-- Paid history -->
+<div class="card">
+  <h2>Paid History</h2>
+  {% if paid %}
+  <div style="overflow-x:auto">
+  <table class="table">
+    <thead>
+      <tr><th>User</th><th>Amount</th><th>Requested</th><th>Paid At</th></tr>
+    </thead>
+    <tbody>
+    {% for pr in paid %}
+    <tr>
+      <td>{{ pr.user.username }}</td>
+      <td>${{ "%.2f"|format(pr.amount) }}</td>
+      <td>{{ pr.requested_at.strftime('%b %d, %Y %H:%M') }} UTC</td>
+      <td><span class="status-badge status-won">{{ pr.paid_at.strftime('%b %d, %Y %H:%M') }} UTC ✓</span></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">No completed payouts yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

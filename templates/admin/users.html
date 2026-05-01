@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Manage Users{% endblock %}
+{% block content %}
+<h1>Users</h1>
+<div class="card" style="overflow-x:auto">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Username</th>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Payment</th>
+      <th>Balance</th>
+      <th>Add Credit</th>
+      <th>Bets</th>
+      <th>Points</th>
+      <th>Role</th>
+      <th>Joined</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for user in users %}
+  <tr>
+    <td>{{ user.username }}</td>
+    <td>{{ (user.first_name or '') ~ ' ' ~ (user.last_name or '') }}</td>
+    <td>{{ user.email }}</td>
+    <td>
+      {% if user.payment_method %}
+        <span class="badge">{{ user.payment_method | capitalize }}</span>
+        {% if user.payment_handle %}<br><span class="muted" style="font-size:.8rem">{{ user.payment_handle }}</span>{% endif %}
+      {% else %}<span class="muted">—</span>{% endif %}
+    </td>
+    <td><strong>${{ "%.2f"|format(user.balance) }}</strong></td>
+    <td>
+      <form method="POST" action="{{ url_for('admin_add_credit', user_id=user.id) }}"
+            style="display:flex;gap:.35rem;align-items:center">
+        <input type="number" name="amount" min="1" max="500" step="1"
+               placeholder="$" style="width:64px;padding:.25rem .4rem;border:1px solid var(--border);border-radius:5px;font-size:.85rem" />
+        <button type="submit" class="btn btn-sm btn-primary">Add</button>
+      </form>
+    </td>
+    <td>{{ user.bets | length }}</td>
+    <td>{{ user.total_points() }}</td>
+    <td>{{ 'Admin' if user.is_admin else 'Player' }}</td>
+    <td>{{ user.created_at.strftime('%b %d, %Y') }}</td>
+    <td>
+      {% if user.id != current_user.id %}
+      <form method="POST" action="{{ url_for('admin_toggle_admin', user_id=user.id) }}" style="display:inline">
+        <button type="submit" class="btn btn-sm {{ 'btn-warning' if user.is_admin else '' }}">
+          {{ 'Remove Admin' if user.is_admin else 'Make Admin' }}
+        </button>
+      </form>
+      {% else %}
+      <span class="muted">(you)</span>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr style="border-top:2px solid var(--border);background:var(--bg)">
+      <td colspan="4" style="font-weight:700;padding:.6rem .75rem">Total (all players)</td>
+      <td><strong style="color:var(--green)">${{ "%.2f"|format(users | rejectattr('is_admin') | map(attribute='balance') | sum) }}</strong></td>
+      <td colspan="6"></td>
+    </tr>
+  </tfoot>
+</table>
+</div>
+{% endblock %}

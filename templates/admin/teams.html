@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Manage Teams{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Teams</h1>
+  <span class="muted">Click a flag/name to edit inline</span>
+</div>
+
+<div class="card" style="overflow-x:auto">
+<table class="table">
+  <thead>
+    <tr><th>Flag</th><th>Name</th><th>Group</th><th>Save</th></tr>
+  </thead>
+  <tbody>
+  {% for team in teams %}
+  <tr>
+    <form method="POST" action="{{ url_for('admin_edit_team', team_id=team.id) }}"
+          style="display:contents">
+      <td>
+        <input type="text" name="flag_emoji" value="{{ team.flag_emoji | flag_html | safe }}"
+               style="width:56px;font-size:1.3rem;text-align:center;border:1px solid var(--border);border-radius:5px;padding:.2rem" />
+      </td>
+      <td>
+        <input type="text" name="name" value="{{ team.name }}"
+               style="width:180px;border:1px solid var(--border);border-radius:5px;padding:.3rem .5rem;font-size:.9rem" />
+      </td>
+      <td>
+        <input type="text" name="group" value="{{ team.group or '' }}"
+               maxlength="2"
+               style="width:44px;text-align:center;border:1px solid var(--border);border-radius:5px;padding:.3rem" />
+      </td>
+      <td>
+        <button type="submit" class="btn btn-sm btn-primary">Save</button>
+      </td>
+    </form>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

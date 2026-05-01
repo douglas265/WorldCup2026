@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% block title %}Matches{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Matches</h1>
+  <div class="filter-bar">
+    <a href="{{ url_for('matches', stage='all', team=current_team or '') }}"
+       class="btn btn-sm {{ 'btn-primary' if current_stage == 'all' }}">All</a>
+    {% for s in stages %}
+    <a href="{{ url_for('matches', stage=s, team=current_team or '') }}"
+       class="btn btn-sm {{ 'btn-primary' if current_stage == s }}">{{ s }}</a>
+    {% endfor %}
+    <select class="btn btn-sm" onchange="location.href=this.value" style="cursor:pointer">
+      <option value="{{ url_for('matches', stage=current_stage) }}"
+              {{ 'selected' if not current_team }}>All Countries</option>
+      {% set ns = namespace(cur_group='') %}
+      {% for t in teams %}
+        {% if t.group != ns.cur_group %}
+          {% set ns.cur_group = t.group %}
+          <option disabled>── Group {{ t.group }} ──</option>
+        {% endif %}
+        <option value="{{ url_for('matches', stage=current_stage, team=t.id) }}"
+                {{ 'selected' if current_team == t.id }}>
+          {{ t.name }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+{% if matches %}
+<div class="match-list">
+  {% for match in matches %}
+  <div class="match-card {{ 'finished' if match.result }}" id="match-{{ match.id }}">
+    <div class="match-meta">
+      {% if match.match_date %}
+      <span class="match-date">{{ match.match_date | to_pt }}</span>
+      {% endif %}
+      <span class="badge">{{ match.stage }}</span>
+      {% if match.bracket_slot %}<span class="badge">{{ match.bracket_slot }}</span>{% endif %}
+      {% if match.venue %}<span class="muted">{{ match.venue }}</span>{% endif %}
+      {% set dist = bet_dist.get(match.id, {}) %}
+      {% set total_bets = dist.get('home',0) + dist.get('draw',0) + dist.get('away',0) %}
+      {% if total_bets > 0 %}
+        <span class="badge">⚽ {{ total_bets }} bet{{ 's' if total_bets != 1 }}</span>
+      {% endif %}
+      {% if match.is_locked and not match.result %}
+        <span class="badge badge-warning">Locked</span>
+      {% elif not match.result and match.has_teams() and not match.betting_open() and not match.is_locked %}
+        <span class="badge badge-warning">Betting Closed</span>
+      {% elif match.betting_open() %}
+        {% set hrs = match.hours_until_kickoff() %}
+        {% if hrs is not none and hrs < 24 %}
+          <span class="badge badge-warning">Closes in {{ "%.0f"|format(hrs) }}h</span>
+        {% endif %}
+      {% endif %}
+    </div>
+
+    <div class="match-teams">
+      <div class="team team-home">
+        {% if match.home_team %}
+          <span class="team-name">{{ match.home_team.name }}</span>
+          <span class="flag">{{ match.home_team.flag_emoji | flag_html | safe }}</span>
+        {% else %}
+          <span class="team-name muted">{{ match.home_source or 'TBD' }}</span>
+        {% endif %}
+      </div>
+      <div class="score-box">
+        {% if match.result %}
+          <span class="score">{{ match.home_score }} — {{ match.away_score }}</span>
+        {% else %}
+          <span class="vs">vs</span>
+        {% endif %}
+      </div>
+      <div class="team team-away">
+        {% if match.away_team %}
+          <span class="team-name">{{ match.away_team.name }}</span>
+          <span class="flag">{{ match.away_team.flag_emoji | flag_html | safe }}</span>
+        {% else %}
+          <span class="team-name muted">{{ match.away_source or 'TBD' }}</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Betting section -->
+    <div class="match-bet">
+      {% set my_bet = my_bets.get(match.id) %}
+      {% if match.result %}
+        {% if my_bet %}
+          <div class="bet-result">
+            Your pick:
+            {% if my_bet.prediction == 'home' %}
+              {{ match.home_team.name if match.home_team else 'Home' }}
+            {% elif my_bet.prediction == 'away' %}
+              {{ match.away_team.name if match.away_team else 'Away' }}
+            {% else %} Draw {% endif %}
+            &nbsp;
+            {% if my_bet.points is not none %}
+              {% if my_bet.points > 0 %}
+                <span class="correct">✓ +{{ my_bet.points }} pts</span>
+              {% else %}
+                <span class="incorrect">✗ 0 pts</span>
+              {% endif %}
+            {% endif %}
+          </div>
+        {% else %}
+          <span class="muted">No bet placed</span>
+        {% endif %}
+      {% elif not match.has_teams() %}
+        <span class="muted">Waiting for teams to be determined</span>
+      {% elif match.betting_open() %}
+        <form method="POST" action="{{ url_for('place_bet', match_id=match.id) }}"
+              class="bet-form"
+              data-home="{{ match.home_team.name if match.home_team else 'Home' }}"
+              data-away="{{ match.away_team.name if match.away_team else 'Away' }}"
+              data-knockout="{{ 'true' if match.is_knockout else 'false' }}"
+              onsubmit="return confirmBet(event, this)">
+          <div class="bet-options">
+            <label class="{{ 'selected' if my_bet and my_bet.prediction == 'home' }}">
+              <input type="radio" name="prediction" value="home"
+                     {{ 'checked' if my_bet and my_bet.prediction == 'home' }} required />
+              {{ match.home_team.name }} {{ match.home_team.flag_emoji | flag_html | safe }}
+            </label>
+            {% if not match.is_knockout %}
+            <label class="{{ 'selected' if my_bet and my_bet.prediction == 'draw' }}">
+              <input type="radio" name="prediction" value="draw"
+                     {{ 'checked' if my_bet and my_bet.prediction == 'draw' }} />
+              Draw
+            </label>
+            {% endif %}
+            <label class="{{ 'selected' if my_bet and my_bet.prediction == 'away' }}">
+              <input type="radio" name="prediction" value="away"
+                     {{ 'checked' if my_bet and my_bet.prediction == 'away' }} />
+              {{ match.away_team.name }} {{ match.away_team.flag_emoji | flag_html | safe }}
+            </label>
+            {% if my_bet %}
+            <label class="no-bet-label">
+              <input type="radio" name="prediction" value="none" />
+              ✕ Remove bet
+            </label>
+            {% endif %}
+          </div>
+          <button type="submit" class="btn btn-primary btn-sm">
+            {{ 'Update Bet' if my_bet else 'Place Bet' }}
+          </button>
+        </form>
+      {% else %}
+        {% if my_bet %}
+          <span class="muted">Bet locked:
+            {% if my_bet.prediction == 'home' %}
+              {{ match.home_team.name if match.home_team else 'Home' }}
+            {% elif my_bet.prediction == 'away' %}
+              {{ match.away_team.name if match.away_team else 'Away' }}
+            {% else %} Draw {% endif %}
+          </span>
+        {% else %}
+          <span class="muted">Betting closed</span>
+        {% endif %}
+      {% endif %}
+    </div><!-- /match-bet -->
+
+    <!-- Post-match bet summary -->
+    {% if match.result %}
+      {% set bets = match_bets.get(match.id, []) %}
+      {% if bets %}
+      <div class="bet-summary">
+        <div class="bet-summary-title">Bets ({{ bets|length }})</div>
+        <div class="bet-summary-list">
+          {% for b in bets %}
+          {% set is_win = b.points is not none and b.points > 0 %}
+          {% set is_refund = b.payout and b.payout > 0 and not is_win %}
+          <div class="bet-summary-row {{ 'bsr-win' if is_win }} {{ 'bsr-refund' if is_refund }}">
+            <span class="bsr-user">{{ b.user.username }}</span>
+            <span class="bsr-pick pick pick-{{ b.prediction }}">
+              {% if b.prediction == 'home' %}{{ match.home_team.name if match.home_team else 'Home' }}
+              {% elif b.prediction == 'away' %}{{ match.away_team.name if match.away_team else 'Away' }}
+              {% else %}Draw{% endif %}
+            </span>
+            <span class="bsr-result">
+              {% if b.payout is none %}<span class="muted">—</span>
+              {% elif b.payout == 0 %}<span class="text-loss">Lost</span>
+              {% elif is_refund %}<span class="muted">Refunded ${{ "%.2f"|format(b.payout) }}</span>
+              {% else %}<span class="text-profit">Won ${{ "%.2f"|format(b.payout) }}</span>
+              {% endif %}
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+    {% endif %}
+  </div><!-- /match-card -->
+  {% endfor %}
+</div>
+<p class="muted">No matches found.</p>
+{% endif %}
+
+<!-- ===== Bet confirmation modal ===== -->
+<div id="bet-modal" class="modal-overlay" style="display:none" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <div class="modal-icon">⚽</div>
+    <h3 id="modal-title">Confirm Your Bet</h3>
+    <p id="modal-body" class="modal-body"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeBetModal()">Cancel</button>
+      <button class="btn btn-primary" id="modal-confirm-btn" onclick="submitBetForm()">Confirm Bet</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let _pendingForm = null;
+
+function confirmBet(event, form) {
+  const radios = form.querySelectorAll('input[name="prediction"]');
+  let selected = null;
+  for (const r of radios) { if (r.checked) { selected = r; break; } }
+  if (!selected) return true; // let HTML5 validation fire
+
+  event.preventDefault();
+
+  const homeName  = form.dataset.home;
+  const awayName  = form.dataset.away;
+  const isKnockout = form.dataset.knockout === 'true';
+  let pickLabel;
+
+  if (selected.value === 'home')      pickLabel = homeName;
+  else if (selected.value === 'away') pickLabel = awayName;
+  else if (selected.value === 'draw') pickLabel = 'Draw';
+  else if (selected.value === 'none') pickLabel = null; // remove bet
+
+  const title   = document.getElementById('modal-title');
+  const body    = document.getElementById('modal-body');
+  const confirm = document.getElementById('modal-confirm-btn');
+
+  if (selected.value === 'none') {
+    title.textContent = 'Remove Your Bet?';
+    body.innerHTML = `You are about to <strong>remove</strong> your bet for this match.`;
+    confirm.textContent = 'Remove Bet';
+    confirm.className = 'btn btn-warning';
+  } else {
+    title.textContent = 'Confirm Your Bet';
+    body.innerHTML = `You are betting on <strong>${pickLabel}</strong>${isKnockout ? ' to win' : ''}.`;
+    confirm.textContent = 'Confirm Bet';
+    confirm.className = 'btn btn-primary';
+  }
+
+  _pendingForm = form;
+  document.getElementById('bet-modal').style.display = 'flex';
+  return false;
+}
+
+function submitBetForm() {
+  closeBetModal();
+  if (_pendingForm) { _pendingForm.submit(); _pendingForm = null; }
+}
+
+function closeBetModal() {
+  document.getElementById('bet-modal').style.display = 'none';
+}
+
+// Close on overlay click
+document.getElementById('bet-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeBetModal();
+});
+
+// Highlight selected radio label
+document.querySelectorAll('.bet-options input[type="radio"]').forEach(function(radio) {
+  radio.addEventListener('change', function() {
+    const options = this.closest('.bet-options');
+    options.querySelectorAll('label').forEach(l => l.classList.remove('selected'));
+    this.closest('label').classList.add('selected');
+  });
+});
+</script>
+{% endblock %}

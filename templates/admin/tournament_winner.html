@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Set Champion{% endblock %}
+{% block content %}
+<div class="card" style="max-width:520px;margin:0 auto">
+  <h2>🏆 Set World Cup Champion</h2>
+  <p>Selecting a winner will immediately award <strong>10 points</strong> to players who picked this team, and <strong>0 points</strong> to all others.</p>
+  <form method="POST">
+    <div class="form-group">
+      <label>Champion Team</label>
+      <select name="team_id" required size="10" class="select-list">
+        {% for team in teams %}
+        <option value="{{ team.id }}">{{ team.name }} {{ team.flag_emoji | flag_html | safe }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="btn btn-primary"
+            onclick="return confirm('Award points for this champion? This cannot be undone easily.')">
+      Set Champion &amp; Award Points
+    </button>
+    <a href="{{ url_for('admin_dashboard') }}" class="btn">Cancel</a>
+  </form>
+</div>
+{% endblock %}

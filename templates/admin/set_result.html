@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Set Result{% endblock %}
+{% block content %}
+<div class="card" style="max-width:480px;margin:0 auto">
+  <h2>Set Result</h2>
+  <div class="match-teams" style="margin-bottom:1.5rem">
+    <strong>
+      {% if match.home_team %}{{ match.home_team.name }} {{ match.home_team.flag_emoji | flag_html | safe }}
+      {% else %}{{ match.home_source or 'Home' }}{% endif %}
+    </strong>
+    &nbsp;vs&nbsp;
+    <strong>
+      {% if match.away_team %}{{ match.away_team.name }} {{ match.away_team.flag_emoji | flag_html | safe }}
+      {% else %}{{ match.away_source or 'Away' }}{% endif %}
+    </strong>
+  </div>
+
+  {% if match.is_knockout %}
+  <div class="alert alert-info" style="margin-bottom:1rem">
+    Knockout match — no draws. If scores are level after 90 min, select the ET/penalty winner below.
+  </div>
+  {% endif %}
+
+  <p class="muted">{{ match.bets | length }} bet(s) will be scored automatically.</p>
+
+  <form method="POST">
+    <div class="form-row">
+      <div class="form-group">
+        <label>{{ match.home_team.name if match.home_team else 'Home' }} Goals</label>
+        <input type="number" name="home_score" min="0" max="20" required
+               value="{{ home_score if home_score is not none else '' }}" />
+      </div>
+      <div class="form-group">
+        <label>{{ match.away_team.name if match.away_team else 'Away' }} Goals</label>
+        <input type="number" name="away_score" min="0" max="20" required
+               value="{{ away_score if away_score is not none else '' }}" />
+      </div>
+    </div>
+
+    {% if show_ko_winner %}
+    <div class="alert alert-warning">
+      Scores are level after 90 min — select the winner (ET / Penalties):
+    </div>
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer;margin-bottom:.5rem">
+        <input type="radio" name="ko_winner" value="home" required />
+        {{ match.home_team.name if match.home_team else 'Home' }} wins
+      </label>
+      <label style="display:flex;align-items:center;gap:.5rem;cursor:pointer">
+        <input type="radio" name="ko_winner" value="away" required />
+        {{ match.away_team.name if match.away_team else 'Away' }} wins
+      </label>
+    </div>
+    {% endif %}
+
+    <button type="submit" class="btn btn-primary">Save Result &amp; Award Points</button>
+    <a href="{{ url_for('admin_matches') }}" class="btn">Cancel</a>
+  </form>
+</div>
+{% endblock %}

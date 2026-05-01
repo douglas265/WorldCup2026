@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block content %}
+<h1>Admin Panel</h1>
+
+<div class="stat-row">
+  <div class="stat card">
+    <div class="stat-value">{{ total_users }}</div>
+    <div class="stat-label">Registered Players</div>
+  </div>
+  <div class="stat card">
+    <div class="stat-value">{{ total_bets }}</div>
+    <div class="stat-label">Total Bets</div>
+  </div>
+  <div class="stat card">
+    <div class="stat-value">{{ pending_matches }}</div>
+    <div class="stat-label">Matches Pending</div>
+  </div>
+</div>
+
+<div class="admin-nav">
+  <a href="{{ url_for('admin_matches') }}" class="btn btn-primary">Manage Matches</a>
+  <a href="{{ url_for('admin_pool') }}" class="btn">View Betting Pool</a>
+  <a href="{{ url_for('admin_tournament_winner') }}" class="btn">Set Champion</a>
+  <a href="{{ url_for('admin_users') }}" class="btn">Manage Users</a>
+  <a href="{{ url_for('admin_teams') }}" class="btn">Manage Teams</a>
+  <a href="{{ url_for('admin_payouts') }}" class="btn">Payout Requests</a>
+</div>
+
+<div class="card" style="margin-top:2rem">
+  <h2>Recent Bets</h2>
+  <table class="table">
+    <thead><tr><th>Player</th><th>Match</th><th>Pick</th><th>Points</th><th>Placed</th></tr></thead>
+    <tbody>
+    {% for bet in recent_bets %}
+    <tr>
+      <td>{{ bet.user.username }}</td>
+      <td>
+        {{ bet.match.home_team.name if bet.match.home_team else (bet.match.home_source or 'TBD') }}
+        vs
+        {{ bet.match.away_team.name if bet.match.away_team else (bet.match.away_source or 'TBD') }}
+      </td>
+      <td>
+        {% if bet.prediction == 'home' %}{{ bet.match.home_team.name if bet.match.home_team else 'Home' }}
+        {% elif bet.prediction == 'away' %}{{ bet.match.away_team.name if bet.match.away_team else 'Away' }}
+        {% else %}Draw{% endif %}
+      </td>
+      <td>{{ bet.points if bet.points is not none else '—' }}</td>
+      <td>{{ bet.placed_at.strftime('%b %d %H:%M') }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="muted">No bets yet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

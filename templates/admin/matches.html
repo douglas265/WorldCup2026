@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Admin — Matches{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Manage Matches</h1>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="{{ url_for('admin_add_match') }}" class="btn btn-primary">+ Add Match</a>
+    <form method="POST" action="{{ url_for('admin_recalculate_bracket') }}" style="margin:0">
+      <button type="submit" class="btn btn-warning">⟳ Recalculate Bracket</button>
+    </form>
+    <form method="POST" action="{{ url_for('admin_sync_scores') }}" style="margin:0">
+      <button type="submit" class="btn btn-primary">⟳ Sync ESPN Scores</button>
+    </form>
+  </div>
+</div>
+
+<div class="card" style="overflow-x:auto">
+<table class="table">
+  <thead>
+    <tr>
+      <th>Slot</th><th>Date</th><th>Match</th><th>Stage</th><th>Venue</th>
+      <th>Result</th><th>Bets</th><th>Status</th><th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for match in matches %}
+  <tr>
+    <td>{{ match.bracket_slot or '—' }}</td>
+    <td>{% if match.match_date %}{{ match.match_date.strftime('%b %d, %H:%M') }}{% else %}TBD{% endif %}</td>
+    <td>
+      {% if match.home_team %}
+        {{ match.home_team.name }} {{ match.home_team.flag_emoji | flag_html | safe }}
+      {% else %}
+        <span class="muted">{{ match.home_source or 'TBD' }}</span>
+      {% endif %}
+      vs
+      {% if match.away_team %}
+        {{ match.away_team.name }} {{ match.away_team.flag_emoji | flag_html | safe }}
+      {% else %}
+        <span class="muted">{{ match.away_source or 'TBD' }}</span>
+      {% endif %}
+    </td>
+    <td>{{ match.stage }}</td>
+    <td>{{ match.venue or '—' }}</td>
+    <td>
+      {% if match.result %}
+        {{ match.home_score }} — {{ match.away_score }}
+        ({% if match.result == 'home' %}
+           {{ match.home_team.name if match.home_team else 'Home' }}
+         {% elif match.result == 'away' %}
+           {{ match.away_team.name if match.away_team else 'Away' }}
+         {% else %}Draw{% endif %})
+      {% else %}—{% endif %}
+    </td>
+    <td>{{ match.bets | length }}</td>
+    <td>
+      {% if match.result %}<span class="badge badge-success">Done</span>
+      {% elif match.is_locked %}<span class="badge badge-warning">Locked</span>
+      {% elif not match.has_teams() %}<span class="badge">TBD</span>
+      {% else %}<span class="badge">Open</span>{% endif %}
+    </td>
+    <td class="action-btns">
+      {% if not match.result and match.has_teams() %}
+        <a href="{{ url_for('admin_set_result', match_id=match.id) }}" class="btn btn-sm btn-primary">Set Result</a>
+        {% if not match.is_locked %}
+        <form method="POST" action="{{ url_for('admin_lock_match', match_id=match.id) }}" style="display:inline">
+          <button type="submit" class="btn btn-sm btn-warning">Lock</button>
+        </form>
+        {% endif %}
+      {% elif not match.result %}
+        <span class="muted">Awaiting teams</span>
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="9" class="muted">No matches yet. <a href="{{ url_for('admin_add_match') }}">Add one.</a></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Champion Pick{% endblock %}
+{% block content %}
+<div class="card" style="max-width:600px;margin:0 auto">
+  <h2>🏆 Pick the World Cup Champion</h2>
+
+  <div style="background:var(--bg);border-radius:8px;padding:.85rem 1rem;margin-bottom:1.25rem;font-size:.9rem">
+    <strong>${{ "%.0f"|format(amount) }} entry</strong> — one pick per player, paid upfront.
+    All entries go into a pool; everyone who picks the correct champion splits it equally.
+    <br>
+    <span class="muted">You can change your pick for free at any time before the cutoff.</span>
+    {% if cutoff %}
+    <br><strong>Cutoff:</strong> {{ cutoff | to_pt }}
+    {% endif %}
+  </div>
+
+  {% if not betting_open %}
+  <div class="alert alert-warning">Champion picks are closed — the tournament has started.</div>
+  {% elif existing %}
+  <div class="alert alert-info">
+    Current pick: <strong>{{ existing.team.flag_emoji | flag_html | safe }} {{ existing.team.name }}</strong>
+    &nbsp;·&nbsp; ${{ "%.0f"|format(existing.amount or amount) }} paid
+    &nbsp;·&nbsp; Changes are free.
+  </div>
+  {% else %}
+  <div class="alert alert-info">
+    Cost: <strong>${{ "%.0f"|format(amount) }}</strong> (deducted from your balance).
+    Your current balance: <strong>${{ "%.2f"|format(current_user.balance) }}</strong>
+  </div>
+  {% endif %}
+
+  {% if betting_open %}
+  <form method="POST">
+    <div class="form-group">
+      <label>Select a Team</label>
+      <select name="team_id" required size="14" class="select-list">
+        {% set ns = namespace(cur_group='') %}
+        {% for team in teams %}
+          {% if team.group != ns.cur_group %}
+            {% set ns.cur_group = team.group %}
+            <option disabled>── Group {{ team.group }} ──</option>
+          {% endif %}
+          <option value="{{ team.id }}"
+            {{ 'selected' if existing and existing.team_id == team.id }}>
+            {{ team.name }} (Group {{ team.group }})
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="display:flex;gap:.75rem">
+      <button type="submit" class="btn btn-primary">
+        {{ 'Update Pick (free)' if existing else 'Place Pick — $' ~ "%.0f"|format(amount) }}
+      </button>
+      <a href="{{ url_for('dashboard') }}" class="btn">Cancel</a>
+    </div>
+  </form>
+
+  {% if existing %}
+  <form method="POST" action="{{ url_for('tournament_bet_remove') }}"
+        style="margin-top:.75rem"
+        onsubmit="return confirm('Remove your champion pick and get ${{ '%.0f'|format(existing.amount or amount) }} refunded?')">
+    <button type="submit" class="btn btn-logout">Remove Pick</button>
+  </form>
+  {% endif %}
+  {% else %}
+    {% if existing %}
+    <p>Your pick: <strong>{{ existing.team.flag_emoji | flag_html | safe }} {{ existing.team.name }}</strong></p>
+    {% endif %}
+    <a href="{{ url_for('dashboard') }}" class="btn">Back to Dashboard</a>
+  {% endif %}
+</div>
+{% endblock %}
